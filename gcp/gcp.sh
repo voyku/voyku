@@ -46,24 +46,6 @@ else
 fi  
 }
 
-# define strange variables
-cmd_file="cmd.sh"
-# custom script
-cat << eof > "${cmd_file}"
-#!/bin/bash
-echo root:wh125125 |sudo chpasswd;
-sudo sed -i 's/^.*PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config;
-sudo sed -i 's/^.*PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config;
-sudo service sshd restart;
-eof
-
-test_file="test.sh"
-# custom script
-cat << eof > "${test_file}"
-#!/bin/bash
-sudo mkdir 666
-eof
-
 exec_launch () {
 gcloud compute instances create $1 \
     --project=$project \
@@ -71,7 +53,7 @@ gcloud compute instances create $1 \
 	--machine-type=e2-medium \
 	--network-interface=${network} \
 	--metadata-from-file=startup-script=config \
-	--metadata=ssh-keys=smithao:ssh-rsa\ AAAAB3NzaC1yc2EAAAABJQAAAQEAohFX9JoZusjJMfA2S2xEQeMgKu7u9TRiEhChh0psgP3yF7sICxVSPZQt\+kIYrXEffDRlajlxt78NecRKqfiRh2D4HL0okrESrHOAJ97HZloA9hVPimfAt5oMvzggrVZilN41iaZX4lxYlu8r6fFeZjBocvRs3VN/6JZt1Naj8KGnuLL22wl9UzXeGrw6D2GRtiki6qGNcaNE2mdL4f5y6DGsCHMPqw2a/MrkE9bXX8XYjhd3\+zRa9PNoYV6XoVX0o9E184jrIekOhK892g/kjtbzrNpwUbhDZlVYSifUAVD7URrqZWB8W0nIMjaOTfcyG/Y4yhwR/cSZksstje6IaQ==\ smithao,startup-script-url=https://raw.githubusercontent.com/voyku/cmd/main/cmd.sh \
+	--metadata=ssh-keys=smithao:ssh-rsa\ AAAAB3NzaC1yc2EAAAABJQAAAQEAohFX9JoZusjJMfA2S2xEQeMgKu7u9TRiEhChh0psgP3yF7sICxVSPZQt\+kIYrXEffDRlajlxt78NecRKqfiRh2D4HL0okrESrHOAJ97HZloA9hVPimfAt5oMvzggrVZilN41iaZX4lxYlu8r6fFeZjBocvRs3VN/6JZt1Naj8KGnuLL22wl9UzXeGrw6D2GRtiki6qGNcaNE2mdL4f5y6DGsCHMPqw2a/MrkE9bXX8XYjhd3\+zRa9PNoYV6XoVX0o9E184jrIekOhK892g/kjtbzrNpwUbhDZlVYSifUAVD7URrqZWB8W0nIMjaOTfcyG/Y4yhwR/cSZksstje6IaQ==\ smithao,startup-script-url=https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh \
 	--maintenance-policy=MIGRATE \
 	--provisioning-model=STANDARD \
 	--service-account=${account} \
