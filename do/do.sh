@@ -128,7 +128,7 @@ read_config () {
     size_array=(${size_text})
     read -p "$(print_ok "(请选择size)"):" size_number
     size_selected=`echo ${size_array[$size_number - 1]} | tr -d '"'`
-    sed '5d' ~/.do/config | sed '4a "size": "'$size_selected'"' | sed '5s/^/ &/g' > ~/.do/size_config
+    sed '5d' ~/.do/config | sed '4a "size": "'$size_selected'",' | sed '5s/^/ &/g' > ~/.do/size_config
     cp_config size_config
     rm -rf ~/.do/size.json  
 
