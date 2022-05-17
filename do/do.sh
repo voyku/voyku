@@ -11,6 +11,9 @@ GreenBG="\033[42;37m"
 RedBG="\033[41;37m"
 OK="${Green}[OK]${Font}"
 ERROR="${Red}[ERROR]${Font}"
+region_length=0
+image_length=0
+size_length=0
 
 ins () {
 # install extra deps
@@ -61,6 +64,7 @@ exec_pre () {
 
 set_config () {  
     read_config token  ;
+    token=$(cat ~/.do/config | jq .token | tr -d '"')
     read_config region ;
     read_config image ;
     read_config size ;
@@ -74,33 +78,77 @@ read_config () {
 	read -p "$(print_ok "(请输入Token)"):" token
 	sed '2d' ~/.do/config | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
 	cp_config token_config
-    elif [[ $1 == "region" ]]; then	
-    read -p "$(print_ok "(请选择region)"):" region
-    sed '3d' ~/.do/config | sed '2a "region": "'$region'",' | sed '3s/^/ &/g' > ~/.do/region_config
-    cp_config region_config
-    elif [[ $1 == "image" ]]; then	
-    read -p "$(print_ok "(请选择image)"):" image
-    sed '4d' ~/.do/config | sed '3a "image": "'$image'",' | sed '4s/^/ &/g' > ~/.do/image_config
+
+ # -------------------------------如果config中region为空，则此处输入region-------------------------------- 
+
+    elif [[ $1 == "region" ]]; then	  
+    doctl compute region list --access-token $token --output json > ~/.do/region.json   
+      jq -c '.[]' ~/.do/region.json | while read i; do  
+        slug=$(echo $i | jq .slug | tr -d '"') 
+        name=$(echo $i | jq .name | tr -d '"')
+        echo -e "$slug " >> ~/.do/region.list
+        ((region_length=region_length+1))
+        echo -e "$region_length.$name"
+      done  
+    region_text=$(cat ~/.do/region.list)
+    region_array=(${region_text})
+    read -p "$(print_ok "(请选择region)"):" region_number
+    region_selected=`echo ${region_array[$region_number - 1]}`    
+    sed '3d' ~/.do/config | sed '2a "region": "'$region_selected'",' | sed '3s/^/ &/g' > ~/.do/region_config
+    cp_config region_config	
+    rm -rf ~/.do/region.json
+	
+ # -------------------------------如果config中image为空，则此处输入image-------------------------------- 
+
+    elif [[ $1 == "image" ]]; then    
+   doctl compute image list-distribution --access-token $token --output json > ~/.do/image.json	
+    jq -c '.[].slug' ~/.do/image.json | tr -d '"' | while read i; do   
+        echo -e "$i " >> ~/.do/image.list
+        ((image_length=image_length+1))
+        echo -e "$image_length.$i"
+      done  
+    image_text=$(cat ~/.do/image.list)
+    image_array=(${image_text})
+    read -p "$(print_ok "(请选择image)"):" image_number
+    image_selected=`echo ${image_array[$image_number - 1]}`
+    sed '4d' ~/.do/config | sed '3a "image": "'$image_selected'",' | sed '4s/^/ &/g' > ~/.do/image_config
     cp_config image_config
-    elif [[ $1 == "size" ]]; then
-    read -p "$(print_ok "(请选择size)"):" size
-    sed '5d' ~/.do/config | sed '4a "size": "'$size'"' | sed '5s/^/ &/g' > ~/.do/size_config
+    rm -rf ~/.do/image.json	
+
+ # -------------------------------如果config中size为空，则此处输入size--------------------------------
+ 	   
+    elif [[ $1 == "size" ]]; then   
+    doctl compute size list --access-token $token --output json > ~/.do/size.json
+    jq -c '.[].slug' ~/.do/size.json | tr -d '"' | while read i; do   
+        echo -e "$i " >> ~/.do/size.list
+        ((size_length=size_length+1))
+        echo -e "$size_length.$i"
+      done  
+    size_text=$(cat ~/.do/size.list)
+    size_array=(${size_text})
+    read -p "$(print_ok "(请选择size)"):" size_number
+    size_selected=`echo ${size_array[$size_number - 1]} | tr -d '"'`
+    sed '5d' ~/.do/config | sed '4a "size": "'$size_selected'"' | sed '5s/^/ &/g' > ~/.do/size_config
     cp_config size_config
+    rm -rf ~/.do/size.json  
+
     else
-	break 
+	print_ok "参数有误"
     fi
+
   else
   	if [[ $1 == "token" ]]; then	
 	token=$(cat ~/.do/config | jq .token | tr -d '"')
     elif [[ $1 == "region" ]]; then	
-    region=$(cat ~/.do/config | jq .region | tr -d '"')
+    region_selected=$(cat ~/.do/config | jq .region | tr -d '"')
     elif [[ $1 == "image" ]]; then	
-    image=$(cat ~/.do/config | jq .image | tr -d '"')
+    image_selected=$(cat ~/.do/config | jq .image | tr -d '"')
     elif [[ $1 == "size" ]]; then
-    size=$(cat ~/.do/config | jq .size | tr -d '"')
+    size_selected=$(cat ~/.do/config | jq .size | tr -d '"')
     else
-	break 
+	print_ok "参数有误"
     fi 	
+
   fi
 }
 
@@ -109,7 +157,25 @@ cp_config () {
 }
 
 exec_launch () {
-  doctl compute droplet create --region $region --image $image --size $size --ssh-keys $sshkey_id one --access-token $token
+  doctl compute droplet create --region $region_selected --image $image_selected --size $size_selected --ssh-keys $sshkey_id one --access-token $token &>/dev/null;
+}
+
+get_ip () {  
+  token=$(cat ~/.do/config | jq .token | tr -d '"')
+   doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
+   jq -c '.[]' ~/.do/droplet.json | while read i; do   
+   date=$(echo $i | jq .networks.v4 ) 
+   echo $date > ~/.do/networks.json
+     jq -c '.[]' ~/.do/networks.json | while read i; do
+     type=$(echo $i | jq .type | tr -d '"' )
+     if [[ $type == "public" ]]; then
+     ip=$(echo $i | jq .ip_address | tr -d '"')
+     print_ok "$ip"
+     fi
+     done
+   done  
+   rm -rf ~/.do/networks.json
+   rm -rf ~/.do/droplet.json
 }
 
 check_env () {
@@ -126,13 +192,22 @@ echo -e "${OK} ${Blue} $1 ${Font}"
 }
 
 exec_destroy () {
-   print_ok 66
+   token=$(cat ~/.do/config | jq .token | tr -d '"')
+   doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
+   jq -c '.[]' ~/.do/droplet.json | while read i; do   
+   id=$(echo $i | jq .id ) 
+   doctl compute droplet delete $id -f --access-token $token ;
+   name=$(echo $i | jq .name | tr -d '"')
+   print_ok "删除$name"
+   done  
+   rm -rf ~/.do/droplet.json
 }
 
 lmain () {
 check_env; 
 exec_pre;
-exec_launch	
+exec_launch;
+get_ip
 }
 
 [ "$1" == "destroy" ] && exec_destroy || lmain;
