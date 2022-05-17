@@ -14,6 +14,7 @@ ERROR="${Red}[ERROR]${Font}"
 region_length=0
 image_length=0
 size_length=0
+do_cfg="$HOME/.do/config";
 
 ins () {
 # install extra deps
@@ -33,19 +34,19 @@ export PATH=$PATH:/usr/local/bin;
 }
 
 exec_pre () {
-    cd ~ 
     FOLDER=~/.do
     FILE=~/.do/config
     if [ -d "$FOLDER" ]; then       
        if test -f "$FILE"; then
-        cd .do ;
+        cd $FOLDER ;
         set_config
        else
-         cd .do && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
          set_config
        fi
     else
-      mkdir .do && chmod 600 .do && cd .do && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+      mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
+      wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
       set_config
     fi
     doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
@@ -64,7 +65,6 @@ exec_pre () {
 
 set_config () {  
     read_config token  ;
-    token=$(cat ~/.do/config | jq .token | tr -d '"')
     read_config region ;
     read_config image ;
     read_config size ;
@@ -76,7 +76,7 @@ read_config () {
     then
     if [[ $1 == "token" ]]; then	
 	read -p "$(print_ok "(请输入Token)"):" token
-	sed '2d' ~/.do/config | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
+	sed '2d' $do_cfg | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
 	cp_config token_config
 
  # -------------------------------如果config中region为空，则此处输入region-------------------------------- 
@@ -94,7 +94,7 @@ read_config () {
     region_array=(${region_text})
     read -p "$(print_ok "(请选择region)"):" region_number
     region_selected=`echo ${region_array[$region_number - 1]}`    
-    sed '3d' ~/.do/config | sed '2a "region": "'$region_selected'",' | sed '3s/^/ &/g' > ~/.do/region_config
+    sed '3d' $do_cfg | sed '2a "region": "'$region_selected'",' | sed '3s/^/ &/g' > ~/.do/region_config
     cp_config region_config	
     rm -rf ~/.do/region.json
 	
@@ -111,7 +111,7 @@ read_config () {
     image_array=(${image_text})
     read -p "$(print_ok "(请选择image)"):" image_number
     image_selected=`echo ${image_array[$image_number - 1]}`
-    sed '4d' ~/.do/config | sed '3a "image": "'$image_selected'",' | sed '4s/^/ &/g' > ~/.do/image_config
+    sed '4d' $do_cfg | sed '3a "image": "'$image_selected'",' | sed '4s/^/ &/g' > ~/.do/image_config
     cp_config image_config
     rm -rf ~/.do/image.json	
 
@@ -128,7 +128,7 @@ read_config () {
     size_array=(${size_text})
     read -p "$(print_ok "(请选择size)"):" size_number
     size_selected=`echo ${size_array[$size_number - 1]} | tr -d '"'`
-    sed '5d' ~/.do/config | sed '4a "size": "'$size_selected'",' | sed '5s/^/ &/g' > ~/.do/size_config
+    sed '5d' $do_cfg | sed '4a "size": "'$size_selected'",' | sed '5s/^/ &/g' > ~/.do/size_config
     cp_config size_config
     rm -rf ~/.do/size.json  
 
@@ -138,13 +138,13 @@ read_config () {
 
   else
   	if [[ $1 == "token" ]]; then	
-	token=$(cat ~/.do/config | jq .token | tr -d '"')
+	token=$(cat $do_cfg | jq .token | tr -d '"')
     elif [[ $1 == "region" ]]; then	
-    region_selected=$(cat ~/.do/config | jq .region | tr -d '"')
+    region_selected=$(cat $do_cfg | jq .region | tr -d '"')
     elif [[ $1 == "image" ]]; then	
-    image_selected=$(cat ~/.do/config | jq .image | tr -d '"')
+    image_selected=$(cat $do_cfg | jq .image | tr -d '"')
     elif [[ $1 == "size" ]]; then
-    size_selected=$(cat ~/.do/config | jq .size | tr -d '"')
+    size_selected=$(cat $do_cfg | jq .size | tr -d '"')
     else
 	print_ok "参数有误"
     fi 	
@@ -157,12 +157,11 @@ cp_config () {
 }
 
 set_instances() {
-instances_number=$(cat ~/.do/config | jq .bootNum | tr -d '"')
-if [[ $instances_number -eq 1 ]]; then
+bootNum=$(cat $do_cfg | jq .bootNum | tr -d '"')
+if [[ $bootNum -eq 1 ]]; then
     inname=`echo $region_selected-$RANDOM`
 	exec_launch $inname ;
-elif [[ $instances_number -gt 1 ]]; then
-    bootNum=$(cat ~/.do/config | jq .bootNum | tr -d '"')	
+elif [[ $bootNum -gt 1 ]]; then	
 	for ((i = 1; i <= $bootNum; i++)); do	 
     echo -e "第$i台$region_selected-$i" 
     exec_launch $region_selected-$i ;
@@ -177,7 +176,7 @@ exec_launch () {
 }
 
 get_ip () {  
-  token=$(cat ~/.do/config | jq .token | tr -d '"')
+  token=$(cat $do_cfg | jq .token | tr -d '"')
    doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
    jq -c '.[]' ~/.do/droplet.json | while read i; do   
    date=$(echo $i | jq .networks.v4 ) 
@@ -208,7 +207,7 @@ echo -e "${OK} ${Blue} $1 ${Font}"
 }
 
 exec_destroy () {
-   token=$(cat ~/.do/config | jq .token | tr -d '"')
+   token=$(cat $do_cfg | jq .token | tr -d '"')
    doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
    jq -c '.[]' ~/.do/droplet.json | while read i; do   
    id=$(echo $i | jq .id ) 

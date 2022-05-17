@@ -74,6 +74,15 @@ check_env () {
     # do some prepare
     command -v az &>/dev/null || ins_oci;
     command -v jq &>/dev/null || ins jq;
+    command -v wget &>/dev/null || ins wget;
+    FOLDER=~/.az
+    if [ -d "$FOLDER" ]; then       
+       cd ~ ; 
+    else
+      mkdir $FOLDER && chmod 600 $FOLDER 
+      cd ~ ; 
+    fi  
+    
   }
 
 exec_launch () {

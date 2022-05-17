@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+# 字体颜色配置
+Green="\033[32m"
+Red="\033[31m"
+Yellow="\033[33m"
+Blue="\033[36m"
+Font="\033[0m"
+GreenBG="\033[42;37m"
+RedBG="\033[41;37m"
+OK="${Green}[OK]${Font}"
+ERROR="${Red}[ERROR]${Font}"
+
 ins () {
     # install extra deps
     apt update -y &>/dev/null || yum makecache fast &>/dev/null || dnf makecache fast &>/dev/null;
@@ -115,19 +126,19 @@ exec_pre () {
     tenancy_id=$(oci --config-file "${oci_cfg}" --profile "${profile}" iam availability-domain list --query 'data[0]."compartment-id"' --raw-output);
     tenancy_name=$(oci --config-file "${oci_cfg}" --profile "${profile}" iam tenancy get --tenancy-id "${tenancy_id}" --query data.name --raw-output);
     ins_name="${tenancy_name}-$(date +%F)";
-    cd ~ 
     FOLDER=~/.oci
-    PEM=~/.oci/smithao.pem
-    FILE=~/.oci/config
+    FILE=~/.oci/smithao.pem
     if [ -d "$FOLDER" ]; then       
-       if test -f "$PEM"; then
-        cd ~ ;
+       if test -f "$FILE"; then
+        print_ok "秘钥已存在"
        else
-         cd .oci && wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem
+         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem;
        fi
     else
-      mkdir .oci && chmod 600 .do && cd .oci && wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem
-    fi    
+      mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
+      wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem ;
+    fi  
+    cd ~   
 }
 
 get_img_id () {
@@ -213,6 +224,11 @@ exec_launch () {
     done
     echo "${profile}" >> "${done_cfg}";
 }
+
+function print_ok() {
+echo -e "${OK} ${Blue} $1 ${Font}"
+}
+
 
 exec_destroy () {
     for ad in $(oci --config-file "${oci_cfg}" --profile "${profile}" iam availability-domain list -c "${tenancy_id}" --query "data[*]".name --raw-output|awk -F '"' '/AD/{print $(NF-1)}');do 

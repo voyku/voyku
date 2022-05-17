@@ -70,7 +70,16 @@ check_env () {
 # do some prepare
 command -v jq &>/dev/null || ins jq;
 command -v curl &>/dev/null || ins curl;
-command -v gcloud &>/dev/null || ins_oci;   
+command -v wget &>/dev/null || ins wget;
+command -v gcloud &>/dev/null || ins_oci;
+
+FOLDER=~/.gcp
+if [ -d "$FOLDER" ]; then       
+       cd ~ ; 
+    else
+      mkdir $FOLDER && chmod 600 $FOLDER 
+      cd ~ ; 
+    fi  
 }
 
 set_info () {
