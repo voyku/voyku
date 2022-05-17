@@ -156,8 +156,24 @@ cp_config () {
   rm -rf config && cp ${1} config && rm -rf ${1}
 }
 
+set_instances() {
+instances_number=$(cat ~/.do/config | jq .bootNum | tr -d '"')
+if [[ $instances_number -eq 1 ]]; then
+    inname=`echo $region_selected-$RANDOM`
+	exec_launch $inname ;
+elif [[ $instances_number -gt 1 ]]; then
+    bootNum=$(cat ~/.do/config | jq .bootNum | tr -d '"')	
+	for ((i = 1; i <= $bootNum; i++)); do	 
+    echo -e "第$i台$region_selected-$i" 
+    exec_launch $region_selected-$i ;
+done
+else
+	print_ok "参数有误"
+fi
+}
+
 exec_launch () {
-  doctl compute droplet create --region $region_selected --image $image_selected --size $size_selected --ssh-keys $sshkey_id one --access-token $token &>/dev/null;
+  doctl compute droplet create --region $region_selected --image $image_selected --size $size_selected --ssh-keys $sshkey_id $1 --access-token $token &>/dev/null;
 }
 
 get_ip () {  
@@ -206,7 +222,7 @@ exec_destroy () {
 lmain () {
 check_env; 
 exec_pre;
-exec_launch;
+set_instances;
 get_ip
 }
 
