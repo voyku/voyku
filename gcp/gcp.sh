@@ -125,7 +125,8 @@ disk_centos="auto-delete=yes,boot=yes,device-name=$inname,image=projects/centos-
 set_instances() {
 read -p "$(print_ok "(开机数1-8)"):" instances_number
 if [[ $instances_number -eq 1 ]]; then	
-	exec_launch $inname ;
+	inname_random=`echo $inname$RANDOM`
+	exec_launch $inname_random ;
 elif [ $instances_number -gt 1 ] && [ $instances_number -le 4 ]; then	
 	for_instances $instances_number ;
 elif [ $instances_number -gt 4 ] && [ $instances_number -le 12 ]; then	
