@@ -1,0 +1,6 @@
+[DEFAULT]
+user=
+fingerprint=06:26:ca:5d:88:01:0d:2d:2e:d8:55:18:7a:b9:b0:19
+key_file=/root/.oci/smithao.pem
+tenancy=
+region=

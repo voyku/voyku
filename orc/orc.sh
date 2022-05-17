@@ -114,7 +114,20 @@ check_env () {
 exec_pre () {
     tenancy_id=$(oci --config-file "${oci_cfg}" --profile "${profile}" iam availability-domain list --query 'data[0]."compartment-id"' --raw-output);
     tenancy_name=$(oci --config-file "${oci_cfg}" --profile "${profile}" iam tenancy get --tenancy-id "${tenancy_id}" --query data.name --raw-output);
-    ins_name="${tenancy_name}-$(date +%F)";    
+    ins_name="${tenancy_name}-$(date +%F)";
+    cd ~ 
+    FOLDER=~/.oci
+    PEM=~/.oci/smithao.pem
+    FILE=~/.oci/config
+    if [ -d "$FOLDER" ]; then       
+       if test -f "$PEM"; then
+        cd ~ ;
+       else
+         cd .oci && wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem
+       fi
+    else
+      mkdir .oci && chmod 600 .do && cd .oci && wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pem && chmod 600 smithao.pem
+    fi    
 }
 
 get_img_id () {
