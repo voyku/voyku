@@ -30,12 +30,48 @@ export PATH=$PATH:/usr/local/bin;
 }
 
 exec_pre () {
-
-	read -p "$(print_ok "(请输入Token)"):" token
-	wget -N --no-check-certificate -q -O smithao.pub https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub && chmod 600 smithao.pub
+    cd ~ && rm -rf .do&& mkdir .do && chmod 600 .do && cd .do && rm -rf config
+    wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+    wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub && chmod 600 smithao.pub  
+    set_config token ;
+    set_config region ;
+    set_config image ;
+    set_config size ;
 	doctl compute ssh-key import smithao --public-key-file smithao.pub --access-token $token --output json
 	rm -rf smithao.pub
     
+}
+
+set_config () {
+  text=$(cat ~/.do/config | jq .$1 | tr -d '"')
+  if [[ $text == "" ]]
+    then
+    if [[ $1 == "token" ]]; then	
+	read -p "$(print_ok "(请输入Token)"):" token
+	sed '2d' ~/.do/config | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
+	cp_config token_config
+    elif [[ $1 == "region" ]]; then	
+    read -p "$(print_ok "(请选择region)"):" region
+    sed '3d' ~/.do/config | sed '2a "region": "'$region'",' | sed '3s/^/ &/g' > ~/.do/region_config
+    cp_config region_config
+    elif [[ $1 == "image" ]]; then	
+    read -p "$(print_ok "(请选择image)"):" image
+    sed '4d' ~/.do/config | sed '3a "image": "'$image'",' | sed '4s/^/ &/g' > ~/.do/image_config
+    cp_config image_config
+    elif [[ $1 == "size" ]]; then
+    read -p "$(print_ok "(请选择size)"):" size
+    sed '5d' ~/.do/config | sed '4a "size": "'$size'"' | sed '5s/^/ &/g' > ~/.do/size_config
+    cp_config size_config
+    else
+	break 
+    fi
+  else
+  	$1=$text
+  fi
+}
+
+cp_config () {  
+  rm -rf config && cp ${1} config && rm -rf ${1}
 }
 
 exec_launch () {
