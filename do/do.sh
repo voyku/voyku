@@ -30,20 +30,44 @@ export PATH=$PATH:/usr/local/bin;
 }
 
 exec_pre () {
-    cd ~ && rm -rf .do&& mkdir .do && chmod 600 .do && cd .do && rm -rf config
-    wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+    cd ~ 
+    FOLDER=~/.do
+    FILE=~/.do/config
+    if [ -d "$FOLDER" ]; then       
+       if test -f "$FILE"; then
+        cd .do ;
+        set_config
+       else
+         cd .do && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+         set_config
+       fi
+    else
+      mkdir .do && chmod 600 .do && cd .do && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+      set_config
+    fi
+    doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
+    date=$(cat ~/.do/keylist.json)
+    if [[ $token == "[]" ]]
+    then
     wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub && chmod 600 smithao.pub  
-    set_config token ;
-    set_config region ;
-    set_config image ;
-    set_config size ;
-	doctl compute ssh-key import smithao --public-key-file smithao.pub --access-token $token --output json
-	rm -rf smithao.pub
-    
+    doctl compute ssh-key import smithao --public-key-file smithao.pub --access-token $token --output json > ~/.do/sshkey.json
+    sshkey_id=$(cat ~/.do/sshkey.json | jq .id )
+    rm -rf smithao.pub && rm -rf ~/.do/sshkey.json
+    else 
+    sshkey_id=$(cat ~/.do/keylist.json | jq .[0].id )
+    rm -rf ~/.do/keylist.json
+    fi    
 }
 
-set_config () {
-  text=$(cat ~/.do/config | jq .$1 | tr -d '"')
+set_config () {  
+    read_config token  ;
+    read_config region ;
+    read_config image ;
+    read_config size ;
+}
+
+read_config () {
+   text=$(cat ~/.do/config | jq .$1 | tr -d '"')
   if [[ $text == "" ]]
     then
     if [[ $1 == "token" ]]; then	
@@ -66,7 +90,17 @@ set_config () {
 	break 
     fi
   else
-  	$1=$text
+  	if [[ $1 == "token" ]]; then	
+	token=$(cat ~/.do/config | jq .token | tr -d '"')
+    elif [[ $1 == "region" ]]; then	
+    region=$(cat ~/.do/config | jq .region | tr -d '"')
+    elif [[ $1 == "image" ]]; then	
+    image=$(cat ~/.do/config | jq .image | tr -d '"')
+    elif [[ $1 == "size" ]]; then
+    size=$(cat ~/.do/config | jq .size | tr -d '"')
+    else
+	break 
+    fi 	
   fi
 }
 
@@ -75,7 +109,7 @@ cp_config () {
 }
 
 exec_launch () {
-  print_ok 66
+  doctl compute droplet create --region $region --image $image --size $size --ssh-keys $sshkey_id one --access-token $token
 }
 
 check_env () {
@@ -97,7 +131,8 @@ exec_destroy () {
 
 lmain () {
 check_env; 
-exec_pre;	
+exec_pre;
+exec_launch	
 }
 
 [ "$1" == "destroy" ] && exec_destroy || lmain;
