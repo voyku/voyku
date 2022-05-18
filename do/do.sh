@@ -39,31 +39,32 @@ exec_pre () {
     if [ -d "$FOLDER" ]; then       
        if test -f "$do_cfg"; then
         cd $FOLDER ;
-        set_token
         set_config
        else
-         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
-         set_token
+         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
+         chmod 600 config
          set_config
        fi
 
        if test -f "$cmd_file"; then
         cd $FOLDER ;
        else
-         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh && chmod 600 cmd.sh         
+        cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
+        chmod 600 cmd.sh         
        fi
     else
       mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
-      wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
-      wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh && chmod 600 cmd.sh
-      set_token
+      wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
+      wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
+      chmod 600 config && chmod 600 cmd.sh
       set_config
     fi
     doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
     date=$(cat ~/.do/keylist.json)
     if [[ $token == "[]" ]]
     then
-    wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub && chmod 600 smithao.pub  
+    wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub &>/dev/null
+    chmod 600 smithao.pub  
     doctl compute ssh-key import smithao --public-key-file smithao.pub --access-token $token --output json > ~/.do/sshkey.json
     sshkey_id=$(cat ~/.do/sshkey.json | jq .id )
     rm -rf smithao.pub && rm -rf ~/.do/sshkey.json
@@ -73,17 +74,19 @@ exec_pre () {
     fi    
 }
 
-set_token () {  
+set_config () {  
 curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
 config=$(cat ~/.do/do.config)
 if [[ $config == *[DIGITALOCEAN]* ]]; then
-    sed -n '2p' ~/.do/do.config > ~/.do/do.txt
+    cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
+    sed -n '2p' ~/.do/do.json > ~/.do/do.txt
     token=$(cat ~/.do/do.txt)
-    sed '2d' $do_cfg | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
+    sed_parameter 2 $token token_config
+    cp_config do.json do.config
+    sed_parameter 3 nyc3 region_config
+    sed_parameter 4 debian-11-x64 image_config
+    sed_parameter 5 s-1vcpu-1gb size_config
 fi
-}
-
-set_config () {  
     read_config token  ;
     read_config region ;
     read_config image ;
@@ -96,8 +99,8 @@ read_config () {
     then
     if [[ $1 == "token" ]]; then	
 	read -p "$(print_ok "(请输入Token)"):" token
-	sed '2d' $do_cfg | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
-	cp_config token_config
+	sed_parameter 2 $token token_config
+
 
  # -------------------------------如果config中region为空，则此处输入region-------------------------------- 
 
@@ -113,9 +116,8 @@ read_config () {
     region_text=$(cat ~/.do/region.list)
     region_array=(${region_text})
     read -p "$(print_ok "(请选择region)"):" region_number
-    region_selected=`echo ${region_array[$region_number - 1]}`    
-    sed '3d' $do_cfg | sed '2a "region": "'$region_selected'",' | sed '3s/^/ &/g' > ~/.do/region_config
-    cp_config region_config	
+    region_selected=`echo ${region_array[$region_number - 1]}` 
+    sed_parameter 3 $region_selected region_config   
     rm -rf ~/.do/region.json
 	
  # -------------------------------如果config中image为空，则此处输入image-------------------------------- 
@@ -131,8 +133,7 @@ read_config () {
     image_array=(${image_text})
     read -p "$(print_ok "(请选择image)"):" image_number
     image_selected=`echo ${image_array[$image_number - 1]}`
-    sed '4d' $do_cfg | sed '3a "image": "'$image_selected'",' | sed '4s/^/ &/g' > ~/.do/image_config
-    cp_config image_config
+    sed_parameter 4 $image_selected image_config
     rm -rf ~/.do/image.json	
 
  # -------------------------------如果config中size为空，则此处输入size--------------------------------
@@ -148,8 +149,7 @@ read_config () {
     size_array=(${size_text})
     read -p "$(print_ok "(请选择size)"):" size_number
     size_selected=`echo ${size_array[$size_number - 1]} | tr -d '"'`
-    sed '5d' $do_cfg | sed '4a "size": "'$size_selected'",' | sed '5s/^/ &/g' > ~/.do/size_config
-    cp_config size_config
+    sed_parameter 5 $size_selected size_config
     rm -rf ~/.do/size.json  
 
     else
@@ -172,14 +172,13 @@ read_config () {
   fi
 }
 
-cp_config () {  
-  rm -rf config && cp ${1} config && rm -rf ${1}
-}
+
 
 set_instances() {
 bootNum=$(cat $do_cfg | jq .bootNum | tr -d '"')
 if [[ $bootNum -eq 1 ]]; then
     inname=`echo $region_selected-$RANDOM`
+    print_ok "$inname"
 	exec_launch $inname ;
 elif [[ $bootNum -gt 1 ]]; then	
 	for ((i = 1; i <= $bootNum; i++)); do	 
@@ -206,6 +205,7 @@ get_ip () {
      if [[ $type == "public" ]]; then
      ip=$(echo $i | jq .ip_address | tr -d '"')
      print_ok "$ip"
+     echo $ip > ~/ip.txt
      fi
      done
    done  
@@ -224,6 +224,25 @@ command -v doctl &>/dev/null || ins_oci;
 
 function print_ok() {
 echo -e "${OK} ${Blue} $1 ${Font}"
+}
+
+cp_config () {  
+  rm -rf ${2} && cp ${1} ${2} && rm -rf ${1}
+}
+
+sed_parameter() {
+if [[ "$1" == "2" ]]; then
+   sed '2d' $do_cfg | sed '1a "token": "'$2'",' | sed '2s/^/ &/g' > ~/.do/$3
+elif [[ "$1" == "3" ]]; then
+   sed '3d' $do_cfg | sed '2a "region": "'$2'",' | sed '3s/^/ &/g' > ~/.do/$3
+elif [[ "$1" == "4" ]]; then
+   sed '4d' $do_cfg | sed '3a "image": "'$2'",' | sed '4s/^/ &/g' > ~/.do/$3
+elif [[ "$1" == "5" ]]; then
+   sed '5d' $do_cfg | sed '4a "size": "'$2'",' | sed '5s/^/ &/g' > ~/.do/$3
+else 
+   print_ok "参数有误"
+fi
+   cp_config $3 config
 }
 
 exec_destroy () {
