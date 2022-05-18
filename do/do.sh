@@ -78,7 +78,7 @@ set_config () {
 }
 
 read_config () {
-   text=$(cat ~/.do/config | jq .$1 | tr -d '"')
+   text=$(cat $do_cfg | jq .$1 | tr -d '"')
   if [[ $text == "" ]]
     then
     if [[ $1 == "token" ]]; then	

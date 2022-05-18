@@ -13,6 +13,9 @@ ERROR="${Red}[ERROR]${Font}"
 D="debian"
 C="centos"
 U="ubuntu"
+gcp_cfg="$HOME/.gcp/config";
+config="$HOME/.gcp/config";
+url="https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh";
 
 ins () {
 # install extra deps
@@ -46,25 +49,7 @@ else
 fi  
 }
 
-exec_launch () {
-gcloud compute instances create $1 \
-    --project=$project \
-	--zone=$area_selected \
-	--machine-type=e2-medium \
-	--network-interface=${network} \
-	--metadata-from-file=startup-script=cmd.sh \
-	--metadata=ssh-keys=smithao:ssh-rsa\ AAAAB3NzaC1yc2EAAAABJQAAAQEAohFX9JoZusjJMfA2S2xEQeMgKu7u9TRiEhChh0psgP3yF7sICxVSPZQt\+kIYrXEffDRlajlxt78NecRKqfiRh2D4HL0okrESrHOAJ97HZloA9hVPimfAt5oMvzggrVZilN41iaZX4lxYlu8r6fFeZjBocvRs3VN/6JZt1Naj8KGnuLL22wl9UzXeGrw6D2GRtiki6qGNcaNE2mdL4f5y6DGsCHMPqw2a/MrkE9bXX8XYjhd3\+zRa9PNoYV6XoVX0o9E184jrIekOhK892g/kjtbzrNpwUbhDZlVYSifUAVD7URrqZWB8W0nIMjaOTfcyG/Y4yhwR/cSZksstje6IaQ==\ smithao,startup-script-url=https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh \
-	--maintenance-policy=MIGRATE \
-	--provisioning-model=STANDARD \
-	--service-account=${account} \
-	--scopes=${scopes} \
-	--tags=http-server,https-server \
-	--create-disk=${disk_centos} \
-	--no-shielded-secure-boot \
-	--shielded-vtpm \
-	--shielded-integrity-monitoring \
-	--reservation-affinity=any;
-}
+
 
 check_env () {
 # do some prepare
@@ -74,12 +59,17 @@ command -v wget &>/dev/null || ins wget;
 command -v gcloud &>/dev/null || ins_oci;
 
 FOLDER=~/.gcp
-if [ -d "$FOLDER" ]; then       
-       cd ~ ; 
-    else
-      mkdir $FOLDER && chmod 600 $FOLDER 
-      cd ~ ; 
-    fi  
+if [ -d "$FOLDER" ]; then            
+   if test -f "$gcp_cfg"; then
+       echo "yes"
+   else
+       cd $FOLDER && wget https://github.com/voyku/voyku/blob/main/gcp/config && chmod 600 config         
+   fi
+else
+    mkdir $FOLDER && chmod 600 $FOLDER
+    cd $FOLDER && wget https://github.com/voyku/voyku/blob/main/gcp/config && chmod 600 config       
+fi  
+cd ~ ; 
 auth_json=$(gcloud auth list --format json)
 status=$(echo $auth_json | jq .[0].status | tr -d '"')
 if [[ $status == "ACTIVE" ]]
@@ -93,6 +83,37 @@ fi
 
 set_info () {
 # set the necessary parameters
+type=$(cat $gcp_cfg | jq .type | tr -d '"')
+if [[ $type == "default" ]]; then
+    print_ok "(type为default)"
+elif [[ $type == "do" ]]; then
+	config="$HOME/.gcp/do.config";
+	url="https://raw.githubusercontent.com/voyku/voyku/main/do/do.sh";
+	print_ok "(type为do)"
+elif [[ $type == "az" ]]; then
+	config="$HOME/.gcp/az.config";
+	url="https://raw.githubusercontent.com/voyku/voyku/main/az/az.sh";
+	print_ok "(type为az)"
+elif [[ $type == "orc" ]]; then
+	config="$HOME/.gcp/orc.config";
+	url="https://raw.githubusercontent.com/voyku/voyku/main/orc/orc.sh";
+	print_ok "(type为orc)"
+elif [[ $type == "lin" ]]; then
+	config="$HOME/.gcp/lin.config";
+	print_ok "(type为lin)"
+elif [[ $type == "s5" ]]; then	
+	url="https://raw.githubusercontent.com/voyku/voyku/main/script/socks5.sh";
+	print_ok "(type为s5)"
+elif [[ $type == "vless" ]]; then	
+	print_ok "(type为vless)"
+else
+	print_ok "(请自定义~/.gcp/cool.sh)"
+	if test -f "~/.gcp/cool.sh"; then
+      exit 1      
+   fi
+	config="$HOME/.gcp/cool.sh";
+fi
+size=$(cat $gcp_cfg | jq .size | tr -d '"')
 gaccount_json=$(gcloud iam service-accounts list --format json) 
 account=$(echo $gaccount_json | jq .[0].email | tr -d '"')
 projectnow_json=$(gcloud compute project-info describe --format json)
@@ -138,16 +159,30 @@ rm -rf zone.json
 print_ok "—————————————— region为$area_selected ——————————————"	
 disk_debian="auto-delete=yes,boot=yes,device-name=$inname,image=projects/debian-cloud/global/images/debian-11-bullseye-v20220406,mode=rw,size=10,type=projects/$project/zones/$area_selected/diskTypes/pd-balanced"	
 disk_centos="auto-delete=yes,boot=yes,device-name=$inname,image=projects/centos-cloud/global/images/centos-7-v20220406,mode=rw,size=20,type=projects/$project/zones/$area_selected/diskTypes/pd-balanced"	 
+disk_ubuntu="auto-delete=yes,boot=yes,device-name=$inname,image=projects/ubuntu-os-cloud/global/images/ubuntu-1804-bionic-v20220505,mode=rw,size=10,type=projects/$project/zones/$area_selected/diskTypes/pd-balanced"
+image=$(cat $gcp_cfg | jq .image | tr -d '"')
+if [[ $image == "centos" ]]; then
+   disk=$disk_centos;
+elif [[ $image == "ubuntu" ]]; then	
+	disk=$disk_ubuntu;
+elif [[ $image == "debian" ]]; then	
+	disk=$disk_debian;
+else
+	print_ok "参数有误"
+	exit 1
+fi
 }
 
+
+
 set_instances() {
-read -p "$(print_ok "(开机数1-8)"):" instances_number
-if [[ $instances_number -eq 1 ]]; then	
+bootNum=$(cat $gcp_cfg | jq .bootNum | tr -d '"')
+if [[ $bootNum -eq 1 ]]; then	
 	inname_random=`echo $inname$RANDOM`
 	exec_launch $inname_random ;
-elif [ $instances_number -gt 1 ] && [ $instances_number -le 4 ]; then	
-	for_instances $instances_number ;
-elif [ $instances_number -gt 4 ] && [ $instances_number -le 12 ]; then	
+elif [ $bootNum -gt 1 ] && [ $bootNum -le 4 ]; then	
+	for_instances $bootNum ;
+elif [ $bootNum -gt 4 ] && [ $bootNum -le 12 ]; then	
 	pre_projects_json=$(gcloud projects list --format json)
 	pre_length=$(echo $pre_projects_json | jq '. | length')
 	if [[ $pre_length -lt 2 ]]; then	   
@@ -162,7 +197,7 @@ elif [ $instances_number -gt 4 ] && [ $instances_number -le 12 ]; then
     if [[ $project_length -eq 1 ]]; then	   
 	for_instances 4 ;
 	elif [[ $project_length -eq 2 ]]; then	   
-	for_instances $(($instances_number-4)) ;   
+	for_instances $(($bootNum-4)) ;   
 	else
 	   break 
     fi	   
@@ -178,6 +213,26 @@ for ((i = 1; i <= $1; i++)); do
   echo -e "第$i台$inname$i" 
   exec_launch $inname$i ;
 done
+}
+
+exec_launch () {
+gcloud compute instances create $1 \
+    --project=$project \
+	--zone=$area_selected \
+	--machine-type=$size \
+	--network-interface=${network} \
+	--metadata-from-file=startup-script=$config \
+	--metadata=ssh-keys=smithao:ssh-rsa\ AAAAB3NzaC1yc2EAAAABJQAAAQEAohFX9JoZusjJMfA2S2xEQeMgKu7u9TRiEhChh0psgP3yF7sICxVSPZQt\+kIYrXEffDRlajlxt78NecRKqfiRh2D4HL0okrESrHOAJ97HZloA9hVPimfAt5oMvzggrVZilN41iaZX4lxYlu8r6fFeZjBocvRs3VN/6JZt1Naj8KGnuLL22wl9UzXeGrw6D2GRtiki6qGNcaNE2mdL4f5y6DGsCHMPqw2a/MrkE9bXX8XYjhd3\+zRa9PNoYV6XoVX0o9E184jrIekOhK892g/kjtbzrNpwUbhDZlVYSifUAVD7URrqZWB8W0nIMjaOTfcyG/Y4yhwR/cSZksstje6IaQ==\ smithao,startup-script-url=$url \
+	--maintenance-policy=MIGRATE \
+	--provisioning-model=STANDARD \
+	--service-account=${account} \
+	--scopes=${scopes} \
+	--tags=http-server,https-server \
+	--create-disk=${disk} \
+	--no-shielded-secure-boot \
+	--shielded-vtpm \
+	--shielded-integrity-monitoring \
+	--reservation-affinity=any;
 }
 
 function print_ok() {
