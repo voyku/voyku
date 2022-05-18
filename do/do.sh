@@ -39,9 +39,11 @@ exec_pre () {
     if [ -d "$FOLDER" ]; then       
        if test -f "$do_cfg"; then
         cd $FOLDER ;
+        set_token
         set_config
        else
          cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+         set_token
          set_config
        fi
 
@@ -54,6 +56,7 @@ exec_pre () {
       mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
       wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
       wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh && chmod 600 cmd.sh
+      set_token
       set_config
     fi
     doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
@@ -68,6 +71,16 @@ exec_pre () {
     sshkey_id=$(cat ~/.do/keylist.json | jq .[0].id )
     rm -rf ~/.do/keylist.json
     fi    
+}
+
+set_token () {  
+curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
+config=$(cat ~/.do/do.config)
+if [[ $config == *[DIGITALOCEAN]* ]]; then
+    sed -n '2p' ~/.do/do.config > ~/.do/do.txt
+    token=$(cat ~/.do/do.txt)
+    sed '2d' $do_cfg | sed '1a "token": "'$token'",' | sed '2s/^/ &/g' > ~/.do/token_config
+fi
 }
 
 set_config () {  
@@ -205,7 +218,7 @@ check_env () {
 command -v jq &>/dev/null || ins jq;
 command -v wget &>/dev/null || ins wget;
 command -v curl &>/dev/null || ins curl;
-command -v doctl &>/dev/null || ins_oci;   
+command -v doctl &>/dev/null || ins_oci; 
 }
 
 
