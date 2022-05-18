@@ -63,11 +63,11 @@ if [ -d "$FOLDER" ]; then
    if test -f "$gcp_cfg"; then
        echo "yes"
    else
-       cd $FOLDER && wget https://github.com/voyku/voyku/blob/main/gcp/config && chmod 600 config         
+       cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config && chmod 600 config         
    fi
 else
     mkdir $FOLDER && chmod 600 $FOLDER
-    cd $FOLDER && wget https://github.com/voyku/voyku/blob/main/gcp/config && chmod 600 config       
+    cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config && chmod 600 config       
 fi  
 cd ~ ; 
 auth_json=$(gcloud auth list --format json)
