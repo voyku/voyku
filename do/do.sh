@@ -15,7 +15,7 @@ region_length=0
 image_length=0
 size_length=0
 do_cfg="$HOME/.do/config";
-
+cmd_file="$HOME/.do/cmd.sh"
 ins () {
 # install extra deps
 apt update -y &>/dev/null || yum makecache fast &>/dev/null || dnf makecache fast &>/dev/null;
@@ -34,19 +34,26 @@ export PATH=$PATH:/usr/local/bin;
 }
 
 exec_pre () {
+
     FOLDER=~/.do
-    FILE=~/.do/config
     if [ -d "$FOLDER" ]; then       
-       if test -f "$FILE"; then
+       if test -f "$do_cfg"; then
         cd $FOLDER ;
         set_config
        else
          cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
          set_config
        fi
+
+       if test -f "$cmd_file"; then
+        cd $FOLDER ;
+       else
+         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh && chmod 600 cmd.sh         
+       fi
     else
       mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
       wget https://raw.githubusercontent.com/voyku/voyku/main/do/config && chmod 600 config
+      wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh && chmod 600 cmd.sh
       set_config
     fi
     doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
@@ -172,7 +179,7 @@ fi
 }
 
 exec_launch () {
-  doctl compute droplet create --region $region_selected --image $image_selected --size $size_selected --ssh-keys $sshkey_id $1 --access-token $token &>/dev/null;
+  doctl compute droplet create --region $region_selected --image $image_selected --size $size_selected --ssh-keys $sshkey_id --user-data-file $cmd_file $1 --access-token $token &>/dev/null;
 }
 
 get_ip () {  

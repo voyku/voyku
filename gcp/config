@@ -1,0 +1,6 @@
+{
+    "name": "default",
+    "bootNum": "1",
+    "image": "centos",
+    "size": "e2-medium"
+}

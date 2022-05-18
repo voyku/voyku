@@ -52,7 +52,7 @@ gcloud compute instances create $1 \
 	--zone=$area_selected \
 	--machine-type=e2-medium \
 	--network-interface=${network} \
-	--metadata-from-file=startup-script=config \
+	--metadata-from-file=startup-script=cmd.sh \
 	--metadata=ssh-keys=smithao:ssh-rsa\ AAAAB3NzaC1yc2EAAAABJQAAAQEAohFX9JoZusjJMfA2S2xEQeMgKu7u9TRiEhChh0psgP3yF7sICxVSPZQt\+kIYrXEffDRlajlxt78NecRKqfiRh2D4HL0okrESrHOAJ97HZloA9hVPimfAt5oMvzggrVZilN41iaZX4lxYlu8r6fFeZjBocvRs3VN/6JZt1Naj8KGnuLL22wl9UzXeGrw6D2GRtiki6qGNcaNE2mdL4f5y6DGsCHMPqw2a/MrkE9bXX8XYjhd3\+zRa9PNoYV6XoVX0o9E184jrIekOhK892g/kjtbzrNpwUbhDZlVYSifUAVD7URrqZWB8W0nIMjaOTfcyG/Y4yhwR/cSZksstje6IaQ==\ smithao,startup-script-url=https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh \
 	--maintenance-policy=MIGRATE \
 	--provisioning-model=STANDARD \
@@ -80,6 +80,15 @@ if [ -d "$FOLDER" ]; then
       mkdir $FOLDER && chmod 600 $FOLDER 
       cd ~ ; 
     fi  
+auth_json=$(gcloud auth list --format json)
+status=$(echo $auth_json | jq .[0].status | tr -d '"')
+if [[ $status == "ACTIVE" ]]
+then
+echo "yes"
+else
+gcloud init --console-only
+fi
+
 }
 
 set_info () {
