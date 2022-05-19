@@ -38,22 +38,22 @@ exec_pre () {
     FOLDER=~/.do
     if [ -d "$FOLDER" ]; then       
        if test -f "$do_cfg"; then
-        cd $FOLDER ;
+        sudo cd $FOLDER ;
         set_config
        else
-         cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
+         sudo cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
          chmod 600 config
          set_config
        fi
 
        if test -f "$cmd_file"; then
-        cd $FOLDER ;
+        sudo cd $FOLDER ;
        else
-        cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
+        sudo cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
         chmod 600 cmd.sh         
        fi
     else
-      mkdir $FOLDER && chmod 600 $FOLDER && cd $FOLDER ;
+      mkdir $FOLDER && chmod 600 $FOLDER && sudo cd $FOLDER ;
       wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
       wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
       chmod 600 config && chmod 600 cmd.sh
@@ -75,14 +75,14 @@ exec_pre () {
 }
 
 set_config () {  
-curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
+sudo curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
 config=$(cat ~/.do/do.config)
 if [[ $config == *DIGITALOCEAN* ]]; then
     cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
     sed -n '2p' ~/.do/do.json > ~/.do/do.txt
     token=$(cat ~/.do/do.txt)
     sed_parameter 2 $token token_config
-    print_ok "(获得Token)"
+    print_ok "(获得Token为$token)"
     cp_config do.json do.config
     sed_parameter 3 nyc3 region_config
     sed_parameter 4 debian-11-x64 image_config
