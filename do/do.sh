@@ -26,7 +26,7 @@ ins_oci () {
 # install do-cli when do-cli command not found
 cd ~
 tag_name=`curl -s https://api.github.com/repos/digitalocean/doctl/releases/latest | grep tag_name|cut -f4 -d "\""`
-wget https://github.com/digitalocean/doctl/releases/download/${tag_name}/doctl-${tag_name: 1}-linux-amd64.tar.gz
+wget https://github.com/digitalocean/doctl/releases/download/${tag_name}/doctl-${tag_name: 1}-linux-amd64.tar.gz &>/dev/null
 tar xf ~/doctl-${tag_name: 1}-linux-amd64.tar.gz
 sudo mv ~/doctl /usr/local/bin
 export PATH=$PATH:/usr/local/bin;
@@ -77,11 +77,12 @@ exec_pre () {
 set_config () {  
 curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
 config=$(cat ~/.do/do.config)
-if [[ $config == *[DIGITALOCEAN]* ]]; then
+if [[ $config == *DIGITALOCEAN* ]]; then
     cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
     sed -n '2p' ~/.do/do.json > ~/.do/do.txt
     token=$(cat ~/.do/do.txt)
     sed_parameter 2 $token token_config
+    print_ok "(获得Token)"
     cp_config do.json do.config
     sed_parameter 3 nyc3 region_config
     sed_parameter 4 debian-11-x64 image_config
@@ -242,7 +243,7 @@ elif [[ "$1" == "5" ]]; then
 else 
    print_ok "参数有误"
 fi
-   cp_config $3 config
+   cp_config $3 $do_cfg
 }
 
 exec_destroy () {
