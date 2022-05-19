@@ -61,23 +61,16 @@ command -v gcloud &>/dev/null || ins_oci;
 FOLDER=~/.gcp
 if [ -d "$FOLDER" ]; then            
    if test -f "$gcp_cfg"; then
-       echo "yes"
+       echo "config已存在"
    else
-       cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config && chmod 600 config         
+       cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config &>/dev/null
+       chmod 600 config         
    fi
 else
     mkdir $FOLDER && chmod 600 $FOLDER
-    cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config && chmod 600 config       
+    cd $FOLDER && wget https://raw.githubusercontent.com/voyku/voyku/main/gcp/config &>/dev/null
+    chmod 600 config       
 fi  
-cd ~ ; 
-auth_json=$(gcloud auth list --format json)
-status=$(echo $auth_json | jq .[0].status | tr -d '"')
-if [[ $status == "ACTIVE" ]]
-then
-echo "yes"
-else
-gcloud init --console-only
-fi
 
 }
 
@@ -250,11 +243,41 @@ done
 rm -rf /root/instances.json
 }
 
+if_login() {
+gcloud auth list --format json > ~/.gcp/auth.json
+auth_json=$(cat ~/.gcp/auth.json)
+if [[ $auth_json == *ACTIVE* ]] ;then
+	jq -c '.[]' ~/.gcp/auth.json | while read i; do 
+	    status=$(echo $i | jq .status | tr -d '"') 
+	    account=$(echo $i | jq .account | tr -d '"' )
+        if [ "$status" == "ACTIVE" ] && [[ "$account" != *developer* ]] ;then
+         login=true  
+         echo $login > ~/.gcp/login
+         break     	
+        else        
+         login=false   
+         echo $login > ~/.gcp/login   
+        fi
+    done  
+else
+login=false
+echo $login > ~/.gcp/login
+fi
+login=$(cat ~/.gcp/login)
+rm -rf ~/.gcp/auth.json && rm -rf ~/.gcp/login
+
+}
+
 lmain () {
 check_env; 
+if_login;
+if [ "$login" == "true" ] ;then
 set_info;
 set_zone;
-set_instances;	
+set_instances;
+else
+gcloud init --console-only
+fi
 }
 
 [ "$1" == "destroy" ] && exec_destroy || lmain;
