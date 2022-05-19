@@ -60,27 +60,27 @@ exec_pre () {
       set_config
     fi
     doctl compute ssh-key list --access-token $token --output json > ~/.do/keylist.json
-    date=$(cat ~/.do/keylist.json)
+    date=$(sudo cat ~/.do/keylist.json)
     if [[ $token == "[]" ]]
     then
     wget https://raw.githubusercontent.com/voyku/voyku/main/key/smithao.pub &>/dev/null
     chmod 600 smithao.pub  
     doctl compute ssh-key import smithao --public-key-file smithao.pub --access-token $token --output json > ~/.do/sshkey.json
-    sshkey_id=$(cat ~/.do/sshkey.json | jq .id )
+    sshkey_id=$(sudo cat ~/.do/sshkey.json | jq .id )
     rm -rf smithao.pub && rm -rf ~/.do/sshkey.json
     else 
-    sshkey_id=$(cat ~/.do/keylist.json | jq .[0].id )
+    sshkey_id=$(sudo cat ~/.do/keylist.json | jq .[0].id )
     rm -rf ~/.do/keylist.json
     fi    
 }
 
 set_config () {  
 sudo curl http://metadata.google.internal/computeMetadata/v1/instance/attributes/startup-script -H "Metadata-Flavor: Google" > ~/.do/do.config 2>&1
-config=$(cat ~/.do/do.config)
+config=$(sudo cat ~/.do/do.config)
 if [[ $config == *DIGITALOCEAN* ]]; then
-    cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
+    sudo cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
     sed -n '2p' ~/.do/do.json > ~/.do/do.txt
-    token=$(cat ~/.do/do.txt)
+    token=$(sudo cat ~/.do/do.txt)
     sed_parameter 2 $token token_config
     print_ok "(获得Token为$token)"
     cp_config do.json do.config
@@ -95,7 +95,7 @@ fi
 }
 
 read_config () {
-   text=$(cat $do_cfg | jq .$1 | tr -d '"')
+   text=$(sudo cat $do_cfg | jq .$1 | tr -d '"')
   if [[ $text == "" ]]
     then
     if [[ $1 == "token" ]]; then	
@@ -114,7 +114,7 @@ read_config () {
         ((region_length=region_length+1))
         echo -e "$region_length.$name"
       done  
-    region_text=$(cat ~/.do/region.list)
+    region_text=$(sudo cat ~/.do/region.list)
     region_array=(${region_text})
     read -p "$(print_ok "(请选择region)"):" region_number
     region_selected=`echo ${region_array[$region_number - 1]}` 
@@ -130,7 +130,7 @@ read_config () {
         ((image_length=image_length+1))
         echo -e "$image_length.$i"
       done  
-    image_text=$(cat ~/.do/image.list)
+    image_text=$(sudo cat ~/.do/image.list)
     image_array=(${image_text})
     read -p "$(print_ok "(请选择image)"):" image_number
     image_selected=`echo ${image_array[$image_number - 1]}`
@@ -146,7 +146,7 @@ read_config () {
         ((size_length=size_length+1))
         echo -e "$size_length.$i"
       done  
-    size_text=$(cat ~/.do/size.list)
+    size_text=$(sudo cat ~/.do/size.list)
     size_array=(${size_text})
     read -p "$(print_ok "(请选择size)"):" size_number
     size_selected=`echo ${size_array[$size_number - 1]} | tr -d '"'`
@@ -159,13 +159,13 @@ read_config () {
 
   else
   	if [[ $1 == "token" ]]; then	
-	token=$(cat $do_cfg | jq .token | tr -d '"')
+	token=$(sudo cat $do_cfg | jq .token | tr -d '"')
     elif [[ $1 == "region" ]]; then	
-    region_selected=$(cat $do_cfg | jq .region | tr -d '"')
+    region_selected=$(sudo cat $do_cfg | jq .region | tr -d '"')
     elif [[ $1 == "image" ]]; then	
-    image_selected=$(cat $do_cfg | jq .image | tr -d '"')
+    image_selected=$(sudo cat $do_cfg | jq .image | tr -d '"')
     elif [[ $1 == "size" ]]; then
-    size_selected=$(cat $do_cfg | jq .size | tr -d '"')
+    size_selected=$(sudo cat $do_cfg | jq .size | tr -d '"')
     else
 	print_ok "参数有误"
     fi 	
@@ -176,7 +176,7 @@ read_config () {
 
 
 set_instances() {
-bootNum=$(cat $do_cfg | jq .bootNum | tr -d '"')
+bootNum=$(sudo cat $do_cfg | jq .bootNum | tr -d '"')
 if [[ $bootNum -eq 1 ]]; then
     inname=`echo $region_selected-$RANDOM`
     print_ok "$inname"
@@ -196,7 +196,7 @@ exec_launch () {
 }
 
 get_ip () {  
-  token=$(cat $do_cfg | jq .token | tr -d '"')
+  token=$(sudo cat $do_cfg | jq .token | tr -d '"')
    doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
    jq -c '.[]' ~/.do/droplet.json | while read i; do   
    date=$(echo $i | jq .networks.v4 ) 
@@ -228,18 +228,18 @@ echo -e "${OK} ${Blue} $1 ${Font}"
 }
 
 cp_config () {  
-  rm -rf ${2} && cp ${1} ${2} && rm -rf ${1}
+ sudo rm -rf ~/.do/${2} && sudo cp ~/.do/${1} ~/.do/${2} && sudo rm -rf ~/.do/${1}
 }
 
 sed_parameter() {
 if [[ "$1" == "2" ]]; then
-   sed '2d' $do_cfg | sed '1a "token": "'$2'",' | sed '2s/^/ &/g' > ~/.do/$3
+   sudo sed '2d' $do_cfg | sudo sed '1a "token": "'$2'",' | sudo sed '2s/^/ &/g' > ~/.do/$3
 elif [[ "$1" == "3" ]]; then
-   sed '3d' $do_cfg | sed '2a "region": "'$2'",' | sed '3s/^/ &/g' > ~/.do/$3
+   sudo sed '3d' $do_cfg | sudo sed '2a "region": "'$2'",' | sudo sed '3s/^/ &/g' > ~/.do/$3
 elif [[ "$1" == "4" ]]; then
-   sed '4d' $do_cfg | sed '3a "image": "'$2'",' | sed '4s/^/ &/g' > ~/.do/$3
+   sudo sed '4d' $do_cfg | sudo sed '3a "image": "'$2'",' | sudo sed '4s/^/ &/g' > ~/.do/$3
 elif [[ "$1" == "5" ]]; then
-   sed '5d' $do_cfg | sed '4a "size": "'$2'",' | sed '5s/^/ &/g' > ~/.do/$3
+   sudo sed '5d' $do_cfg | sudo sed '4a "size": "'$2'",' | sudo sed '5s/^/ &/g' > ~/.do/$3
 else 
    print_ok "参数有误"
 fi
@@ -247,7 +247,7 @@ fi
 }
 
 exec_destroy () {
-   token=$(cat $do_cfg | jq .token | tr -d '"')
+   token=$(sudo cat $do_cfg | jq .token | tr -d '"')
    doctl compute droplet list --access-token $token --output json > ~/.do/droplet.json
    jq -c '.[]' ~/.do/droplet.json | while read i; do   
    id=$(echo $i | jq .id ) 
