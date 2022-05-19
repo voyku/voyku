@@ -53,7 +53,7 @@ exec_pre () {
         chmod 600 cmd.sh         
        fi
     else
-      mkdir $FOLDER && chmod 600 $FOLDER && sudo cd $FOLDER ;
+      sudo mkdir $FOLDER && chmod 600 $FOLDER && sudo cd $FOLDER ;
       wget https://raw.githubusercontent.com/voyku/voyku/main/do/config &>/dev/null
       wget https://raw.githubusercontent.com/voyku/voyku/main/script/cmd.sh &>/dev/null
       chmod 600 config && chmod 600 cmd.sh
@@ -79,7 +79,7 @@ sudo curl http://metadata.google.internal/computeMetadata/v1/instance/attributes
 config=$(sudo cat ~/.do/do.config)
 if [[ $config == *DIGITALOCEAN* ]]; then
     sudo cat ~/.do/do.config | grep "DIGITALOCEAN" -A 100 > ~/.do/do.json
-    sed -n '2p' ~/.do/do.json > ~/.do/do.txt
+    sudo sed -n '2p' ~/.do/do.json > ~/.do/do.txt
     token=$(sudo cat ~/.do/do.txt)
     sed_parameter 2 $token token_config
     print_ok "(获得Token为$token)"
@@ -243,7 +243,7 @@ elif [[ "$1" == "5" ]]; then
 else 
    print_ok "参数有误"
 fi
-   cp_config $3 $do_cfg
+   cp_config $3 config
 }
 
 exec_destroy () {
